@@ -1,36 +1,27 @@
 // src/screens/LoginScreen.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { colors, radius } from '../theme';
 
 export default function LoginScreen({ onLoginSuccess }: { onLoginSuccess: () => void }) {
-  const [email, setEmail] = useState(''); // On garde l'email pour Supabase, mais le design affiche "Téléphone"
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
+    if (!email || !password) return Alert.alert('Erreur', 'Veuillez remplir tous les champs.');
+    
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    
     if (error) {
-      Alert.alert('Erreur', error.message);
+      Alert.alert('Erreur de connexion', error.message);
     } else {
-      onLoginSuccess(); // Déclenche la redirection
+      onLoginSuccess();
     }
-    setLoading(false);
-  }
-
-  // Boutons de création de compte (cachés en bas pour le dev)
-  async function createTestUser(role: 'gerant' | 'agent') {
-    setLoading(true);
-    const testEmail = `${role}_test@demo.com`;
-    const { error } = await supabase.auth.signUp({
-      email: testEmail,
-      password: 'password123',
-      options: { data: { full_name: role === 'gerant' ? 'Rado Rakoto' : 'Agent Bako A.', role: role } }
-    });
-    if (error) Alert.alert('Erreur', error.message);
-    else Alert.alert('Succès', `Compte ${role} créé ! Email: ${testEmail} / Mdp: password123`);
+    
     setLoading(false);
   }
 
@@ -45,38 +36,32 @@ export default function LoginScreen({ onLoginSuccess }: { onLoginSuccess: () => 
       <Text style={styles.subtitle}>Connectez-vous pour gérer vos cash points</Text>
 
       <View style={styles.form}>
-        <Text style={styles.label}>Email (ou téléphone)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="votre@email.com"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail}
+        <Text style={styles.label}>Email</Text>
+        <TextInput 
+          style={styles.input} 
+          placeholder="votre@email.com" 
+          keyboardType="email-address" 
+          autoCapitalize="none" 
+          value={email} 
+          onChangeText={setEmail} 
         />
-
+        
         <Text style={styles.label}>Mot de passe</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="••••••••"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
+        <TextInput 
+          style={styles.input} 
+          placeholder="••••••••" 
+          secureTextEntry 
+          value={password} 
+          onChangeText={setPassword} 
         />
-
+        
         <TouchableOpacity>
           <Text style={styles.forgot}>Mot de passe oublié ?</Text>
         </TouchableOpacity>
-
+        
         <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
           {loading ? <ActivityIndicator color={colors.textOnDark} /> : <Text style={styles.buttonText}>Se connecter</Text>}
         </TouchableOpacity>
-        
-        {/* Boutons de test pour la démo */}
-        <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 20}}>
-           <TouchableOpacity onPress={() => createTestUser('gerant')}><Text style={{color: colors.jade, fontSize: 12}}>+ Créer Gérant</Text></TouchableOpacity>
-           <TouchableOpacity onPress={() => createTestUser('agent')}><Text style={{color: colors.jade, fontSize: 12}}>+ Créer Agent</Text></TouchableOpacity>
-        </View>
       </View>
 
       <View style={styles.operators}>

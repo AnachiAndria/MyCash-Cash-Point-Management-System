@@ -1,16 +1,23 @@
 // src/screens/gerant/GerantHomeScreen.tsx
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context'; // <-- Correction ici
 import { colors, radius } from '../../theme';
 
-export default function GerantHomeScreen({ navigation }: any) {
+interface GerantHomeScreenProps {
+  profile: any;
+  navigation: any;
+}
+
+export default function GerantHomeScreen({ navigation, profile }: GerantHomeScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.headerLabel}>Bonjour,</Text>
-            <Text style={styles.headerTitle}>Rado Rakoto</Text>
+            {/* AFFICHAGE DYNAMIQUE DU NOM DU GERANT */}
+            <Text style={styles.headerTitle}>{profile?.full_name || 'Gérant'}</Text>
           </View>
           <TouchableOpacity style={styles.notifBtn}>
             <Text style={{fontSize: 20}}>🔔</Text>

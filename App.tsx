@@ -24,26 +24,21 @@ import GerantReportDetailScreen from './src/screens/gerant/GerantReportDetailScr
 import GerantCashPointDetailScreen from './src/screens/gerant/GerantCashPointDetailScreen';
 import GerantHistoryScreen from './src/screens/gerant/GerantHistoryScreen';
 import GerantSettingsScreen from './src/screens/gerant/GerantSettingsScreen';
+import GerantAddAgentScreen from './src/screens/gerant/GerantAddAgentScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // --- NAVIGATION AGENT ---
-function AgentTabs({ setSession }: { setSession: (s: Session | null) => void }) {
+function AgentTabs({ setSession, profile }: { setSession: any, profile: any }) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
-          height: 65,
-          paddingBottom: 10,
-          paddingTop: 10,
-        },
+        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border, height: 65, paddingBottom: 10, paddingTop: 10 },
         tabBarActiveTintColor: colors.jade,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarIcon: ({ focused, color }) => {
           let iconName: any;
           if (route.name === 'Accueil') iconName = focused ? 'home' : 'home-outline';
           else if (route.name === 'Rapports') iconName = focused ? 'document-text' : 'document-text-outline';
@@ -53,14 +48,12 @@ function AgentTabs({ setSession }: { setSession: (s: Session | null) => void }) 
       })}
     >
       <Tab.Screen name="Accueil">
-        {(props) => (
+        {/* On ajoute (props: any) ici pour corriger l'erreur rouge */}
+        {(props: any) => (
           <AgentHomeScreen 
             {...props} 
+            profile={profile} 
             onNewReport={() => props.navigation.navigate('Rapports')} 
-            onLogout={async () => {
-              await supabase.auth.signOut();
-              setSession(null);
-            }}
           />
         )}
       </Tab.Screen>
@@ -71,18 +64,12 @@ function AgentTabs({ setSession }: { setSession: (s: Session | null) => void }) 
 }
 
 // --- NAVIGATION GERANT ---
-function GerantTabs() {
+function GerantTabs({ profile }: { profile: any }) {
   return (
     <Tab.Navigator 
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
-          height: 65,
-          paddingBottom: 10,
-          paddingTop: 10,
-        },
+        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border, height: 65, paddingBottom: 10, paddingTop: 10 },
         tabBarActiveTintColor: colors.jade,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarIcon: ({ focused, color }) => {
@@ -94,7 +81,10 @@ function GerantTabs() {
         },
       })}
     >
-      <Tab.Screen name="Accueil" component={GerantHomeScreen} />
+      <Tab.Screen name="Accueil">
+        {/* On ajoute (props: any) ici aussi */}
+        {(props: any) => <GerantHomeScreen {...props} profile={profile} />}
+      </Tab.Screen>
       <Tab.Screen name="Rapports" component={GerantHistoryScreen} />
       <Tab.Screen name="Profil" component={GerantSettingsScreen} />
     </Tab.Navigator>
@@ -104,37 +94,35 @@ function GerantTabs() {
 // --- APP PRINCIPALE ---
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<any>(null); 
   const [isSplashVisible, setIsSplashVisible] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoadingRole, setIsLoadingRole] = useState(false);
 
   useEffect(() => {
     setTimeout(() => setIsSplashVisible(false), 2000);
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) fetchRole(session.user.id, session.user.email);
+      if (session) fetchProfile(session.user.id, session.user.email);
     });
-
     supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) fetchRole(session.user.id, session.user.email);
-      else {
-        setUserRole(null);
-        setIsLoadingRole(false);
-      }
+      if (session) fetchProfile(session.user.id, session.user.email);
+      else { setProfile(null); setIsLoadingRole(false); }
     });
   }, []);
 
-  async function fetchRole(userId: string, userEmail: string | undefined) {
+  async function fetchProfile(userId: string, userEmail: string | undefined) {
     setIsLoadingRole(true);
-    const { data } = await supabase.from('profiles').select('role').eq('id', userId).single();
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
     
-    if (data && data.role) {
-      setUserRole(data.role);
+    if (data) {
+      setProfile(data);
     } else {
-      if (userEmail && userEmail.includes('agent')) setUserRole('agent');
-      else setUserRole('gerant');
+      setProfile({ 
+        role: userEmail && userEmail.includes('agent') ? 'agent' : 'gerant',
+        full_name: 'Utilisateur Test',
+        cash_point: 'Analakely'
+      });
     }
     setIsLoadingRole(false);
   }
@@ -145,7 +133,7 @@ export default function App() {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.cream }}>
         <ActivityIndicator size="large" color={colors.jade} />
-        <Text style={{ marginTop: 10, color: colors.textMuted }}>Chargement de votre espace...</Text>
+        <Text style={{ marginTop: 10, color: colors.textMuted }}>Chargement...</Text>
       </View>
     );
   }
@@ -157,19 +145,18 @@ export default function App() {
           <Stack.Screen name="Login">
             {(props) => <LoginScreen {...props} onLoginSuccess={() => {}} />}
           </Stack.Screen>
-        ) : userRole === 'agent' ? (
-          // --- STACK AGENT ---
-          <>
-            <Stack.Screen name="AgentApp">
-              {() => <AgentTabs setSession={setSession} />}
-            </Stack.Screen>
-          </>
+        ) : profile?.role === 'agent' ? (
+          <Stack.Screen name="AgentApp">
+            {() => <AgentTabs setSession={setSession} profile={profile} />}
+          </Stack.Screen>
         ) : (
-          // --- STACK GERANT ---
           <>
-            <Stack.Screen name="GerantApp" component={GerantTabs} />
+            <Stack.Screen name="GerantApp">
+              {() => <GerantTabs profile={profile} />}
+            </Stack.Screen>
             <Stack.Screen name="GerantReportDetail" component={GerantReportDetailScreen} />
             <Stack.Screen name="GerantCashPointDetail" component={GerantCashPointDetailScreen} />
+            <Stack.Screen name="GerantAddAgent" component={GerantAddAgentScreen} />
           </>
         )}
       </Stack.Navigator>
