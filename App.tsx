@@ -48,7 +48,6 @@ function AgentTabs({ setSession, profile }: { setSession: any, profile: any }) {
       })}
     >
       <Tab.Screen name="Accueil">
-        {/* On ajoute (props: any) ici pour corriger l'erreur rouge */}
         {(props: any) => (
           <AgentHomeScreen 
             {...props} 
@@ -82,7 +81,6 @@ function GerantTabs({ profile }: { profile: any }) {
       })}
     >
       <Tab.Screen name="Accueil">
-        {/* On ajoute (props: any) ici aussi */}
         {(props: any) => <GerantHomeScreen {...props} profile={profile} />}
       </Tab.Screen>
       <Tab.Screen name="Rapports" component={GerantHistoryScreen} />
@@ -113,16 +111,15 @@ export default function App() {
 
   async function fetchProfile(userId: string, userEmail: string | undefined) {
     setIsLoadingRole(true);
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
     
     if (data) {
       setProfile(data);
     } else {
-      setProfile({ 
-        role: userEmail && userEmail.includes('agent') ? 'agent' : 'gerant',
-        full_name: 'Utilisateur Test',
-        cash_point: 'Analakely'
-      });
+      console.log("Erreur de récupération du profil:", error);
+      // Si on ne trouve pas le profil, on déconnecte l'utilisateur pour éviter les bugs
+      await supabase.auth.signOut();
+      setProfile(null);
     }
     setIsLoadingRole(false);
   }

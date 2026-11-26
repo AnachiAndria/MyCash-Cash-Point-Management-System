@@ -63,8 +63,24 @@ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 
 4. **Créer le compte Gérant (Administrateur)**
 L'application ne permet pas de s'inscrire en tant que gérant. Il faut le créer manuellement une seule fois :
-- Allez dans **Authentication > Users** sur Supabase, cliquez sur **Add User** pour créer un utilisateur.
-- Allez dans la table **profiles** (Table Editor) et modifiez la ligne de cet utilisateur pour mettre son role à gerant.
+
+## 👑 Création du compte Administrateur (Bootstrap)
+
+Lors de la première installation, un compte Administrateur (Gérant) doit être créé pour pouvoir accéder à l'application.
+
+### Procédure automatique (Recommandée)
+Le fichier de migration `supabase/migrations/..._bootstrap_admin.sql` crée automatiquement ce compte lors de l'exécution de `npx supabase db push`.
+
+**Identifiants par défaut :**
+- **Email** : `admin@vola.mg`
+- **Mot de passe** : `ChangeMe123!`
+
+> **⚠️ Important** : Pour des raisons de sécurité, il est impératif de modifier ces identifiants dans le fichier SQL **avant** de déployer l'application chez un client, ou de demander au client de changer son mot de passe dès sa première connexion.
+
+### Procédure manuelle (Dépannage)
+Si le script n'a pas fonctionné, vous pouvez créer l'Admin manuellement :
+1. Allez dans **Authentication > Users** sur votre projet Supabase et cliquez sur **Add User**.
+2. Allez dans la table **profiles** et modifiez la ligne de cet utilisateur pour mettre son `role` à `gerant`.
 
 5. **Déployer l'Edge Function (pour la création d'agents)**
 npx supabase functions deploy create-user

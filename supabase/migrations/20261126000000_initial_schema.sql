@@ -1,8 +1,12 @@
--- Création du type pour les rôles
-CREATE TYPE public.user_role AS ENUM ('gerant', 'agent');
+-- Création du type pour les rôles (sécurisé)
+DO $$ BEGIN
+    CREATE TYPE public.user_role AS ENUM ('gerant', 'agent');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- Table des profils (liée à auth.users)
-CREATE TABLE public.profiles (
+-- Table des profils
+CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
   full_name text,
   role public.user_role DEFAULT 'agent'::public.user_role,
@@ -10,24 +14,24 @@ CREATE TABLE public.profiles (
   cash_point text
 );
 
--- Table des cash points (pour plus tard)
-CREATE TABLE public.cashpoints (
+-- Table des cash points
+CREATE TABLE IF NOT EXISTS public.cashpoints (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name text NOT NULL,
   location text,
   current_agent_id uuid REFERENCES public.profiles(id)
 );
 
--- Table des produits (pour plus tard)
-CREATE TABLE public.products (
+-- Table des produits
+CREATE TABLE IF NOT EXISTS public.products (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name text NOT NULL,
   purchase_price numeric DEFAULT 0,
   selling_price numeric DEFAULT 0
 );
 
--- Table des rapports journaliers (pour plus tard)
-CREATE TABLE public.reports (
+-- Table des rapports journaliers
+CREATE TABLE IF NOT EXISTS public.reports (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   agent_id uuid REFERENCES public.profiles(id) NOT NULL,
   date date NOT NULL DEFAULT CURRENT_DATE,
@@ -43,20 +47,30 @@ ALTER TABLE public.cashpoints ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 
--- Politiques RLS pour les profils
--- Un utilisateur peut lire son propre profil
+-- Fonction sécurisée pour éviter la boucle infinie (SECURITY DEFINER contourne le RLS)
+CREATE OR REPLACE FUNCTION public.is_gerant()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'gerant'
+  );
+$$;
+
+-- Politiques RLS pour la table profiles
+DROP POLICY IF EXISTS "Lecture de son propre profil" ON public.profiles;
 CREATE POLICY "Lecture de son propre profil" ON public.profiles
   FOR SELECT TO authenticated USING (auth.uid() = id);
 
--- Un utilisateur peut modifier son propre profil
+DROP POLICY IF EXISTS "Modification de son propre profil" ON public.profiles;
 CREATE POLICY "Modification de son propre profil" ON public.profiles
   FOR UPDATE TO authenticated USING (auth.uid() = id);
 
--- Le gérant peut tout voir (on vérifie son rôle)
+DROP POLICY IF EXISTS "Le gerant voit tout" ON public.profiles;
 CREATE POLICY "Le gerant voit tout" ON public.profiles
-  FOR ALL TO authenticated USING (
-    (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'gerant'
-  );
+  FOR ALL TO authenticated USING ( public.is_gerant() );
 
 -- Trigger pour créer automatiquement un profil à l'inscription
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -77,6 +91,8 @@ BEGIN
 END;
 $$;
 
+-- On supprime le trigger s'il existe déjà avant de le recréer
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
